@@ -1,4 +1,4 @@
-# tf-mod-aws-cloudwatch-log-group — SCOPE
+# terraform-aws-cloudwatch-log-group — SCOPE
 
 Composite module for a secure-by-default Amazon CloudWatch Logs log group. It owns
 the log group (retention enforced, optional SSE-KMS encryption) plus its optional
@@ -23,23 +23,23 @@ The module manages **all** of the following (allow-list):
 
 Referenced by `arn`/`id`/`name`, never created here:
 
-- KMS CMK for log encryption — `kms_key_arn` (from `tf-mod-aws-kms`)
+- KMS CMK for log encryption — `kms_key_arn` (from `terraform-aws-kms`)
 - Subscription-filter destination (Kinesis stream, Firehose, or Lambda) —
   `destination_arn` (by ARN)
 - IAM role CloudWatch Logs assumes to deliver to a cross-account destination —
-  `role_arn` on a subscription filter (from `tf-mod-aws-iam-role`)
+  `role_arn` on a subscription filter (from `terraform-aws-iam-role`)
 - CloudWatch metric namespace targeted by metric filters (logical, not a resource)
 
 ## Consumes
 
 | Input | Type | Source module |
 |---|---|---|
-| `kms_key_arn` | `string` (KMS key ARN) | `tf-mod-aws-kms` |
+| `kms_key_arn` | `string` (KMS key ARN) | `terraform-aws-kms` |
 | `subscription_filters[*].destination_arn` | `string` (Kinesis/Firehose/Lambda ARN) | app integration / analytics modules |
-| `subscription_filters[*].role_arn` | `string` (IAM role ARN) | `tf-mod-aws-iam-role` |
+| `subscription_filters[*].role_arn` | `string` (IAM role ARN) | `terraform-aws-iam-role` |
 
 > Foundation logging target: this module is consumed *by* many others
-> (`tf-mod-aws-vpc` flow logs, Lambda, ECS, EKS, `tf-mod-aws-cloudtrail`) which pass
+> (`terraform-aws-vpc` flow logs, Lambda, ECS, EKS, `terraform-aws-cloudtrail`) which pass
 > this group's `arn`/`name` as their log destination.
 
 ## Required IAM permissions

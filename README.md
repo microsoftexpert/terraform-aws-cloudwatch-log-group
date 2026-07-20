@@ -38,17 +38,17 @@ Whether it's a star, a professional connection, or a coffee, every gesture helps
 
 ## 🗺️ Where this fits in the family
 
-`tf-mod-aws-cloudwatch-log-group` is a **foundation observability module** — it consumes little, and it is consumed *by* many other modules that hand it their `arn`/`name` as a log destination.
+`terraform-aws-cloudwatch-log-group` is a **foundation observability module** — it consumes little, and it is consumed *by* many other modules that hand it their `arn`/`name` as a log destination.
 
 ```mermaid
 flowchart LR
- kms["tf-mod-aws-kms<br/>CMK"]
- role["tf-mod-aws-iam-role<br/>delivery role"]
- lg["tf-mod-aws-cloudwatch-log-group"]
- vpc["tf-mod-aws-vpc<br/>flow logs"]
- ct["tf-mod-aws-cloudtrail"]
- ecs["tf-mod-aws-ecs-service"]
- eks["tf-mod-aws-eks"]
+ kms["terraform-aws-kms<br/>CMK"]
+ role["terraform-aws-iam-role<br/>delivery role"]
+ lg["terraform-aws-cloudwatch-log-group"]
+ vpc["terraform-aws-vpc<br/>flow logs"]
+ ct["terraform-aws-cloudtrail"]
+ ecs["terraform-aws-ecs-service"]
+ eks["terraform-aws-eks"]
  fh["Kinesis / Firehose / Lambda<br/>(subscription target)"]
  cw["CloudWatch Alarms"]
 
@@ -70,7 +70,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
- subgraph mod["tf-mod-aws-cloudwatch-log-group"]
+ subgraph mod["terraform-aws-cloudwatch-log-group"]
  lg["aws_cloudwatch_log_group.this<br/>(keystone)<br/>retention + optional SSE-KMS"]
  mf["aws_cloudwatch_log_metric_filter.this<br/>for_each metric_filters"]
  sf["aws_cloudwatch_log_subscription_filter.this<br/>for_each subscription_filters (max 2)"]
@@ -135,7 +135,7 @@ Least-privilege actions the **Terraform execution identity** needs to manage thi
 ## 📋 AWS Prerequisites
 
 - **No service-linked role** is required for CloudWatch Logs itself.
-- **KMS key policy (when `kms_key_arn` is set).** The CMK's key policy **must** allow the CloudWatch Logs service principal `logs.<region>.amazonaws.com` to `kms:Encrypt*` / `kms:Decrypt*` / `kms:GenerateDataKey*` / `kms:Describe*`, ideally scoped with a `kms:EncryptionContext:aws:logs:arn` condition pinned to this group's ARN. Without it, log delivery fails. (`tf-mod-aws-kms` can author this grant.)
+- **KMS key policy (when `kms_key_arn` is set).** The CMK's key policy **must** allow the CloudWatch Logs service principal `logs.<region>.amazonaws.com` to `kms:Encrypt*` / `kms:Decrypt*` / `kms:GenerateDataKey*` / `kms:Describe*`, ideally scoped with a `kms:EncryptionContext:aws:logs:arn` condition pinned to this group's ARN. Without it, log delivery fails. (`terraform-aws-kms` can author this grant.)
 - **Subscription-filter destination (optional).** The Kinesis stream / Firehose delivery stream / Lambda function must already exist. Cross-account destinations need a destination policy; a Lambda target needs a resource-based permission allowing `logs.amazonaws.com` to invoke it.
 - **Region.** Provider-inherited; there is **no `region` variable**. CloudWatch Logs is **not** a us-east-1 global service — create the group in whichever Region its producers live.
 - **Quotas** (per [CloudWatch Logs quotas](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch_limits_cwl.html)):
@@ -149,7 +149,7 @@ Least-privilege actions the **Terraform execution identity** needs to manage thi
 ## 📁 Module Structure
 
 ```
-tf-mod-aws-cloudwatch-log-group/
+terraform-aws-cloudwatch-log-group/
 ├── providers.tf # required_providers (aws >= 6.0, < 7.0); no provider block
 ├── variables.tf # name → retention/kms/class → child collections → resource_policy → tags
 ├── main.tf # aws_cloudwatch_log_group.this + metric/subscription filters, streams, policy
@@ -166,7 +166,7 @@ Smallest working call — a one-year, encrypted-by-the-AWS-key log group:
 
 ```hcl
 module "app_logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name              = "/casey/app/api"
   retention_in_days = 365 # secure default — shown here for clarity
@@ -186,11 +186,11 @@ module "app_logs" {
 
 | Input | Type | Source module |
 |---|---|---|
-| `kms_key_arn` | `string` (KMS key ARN) | `tf-mod-aws-kms` |
+| `kms_key_arn` | `string` (KMS key ARN) | `terraform-aws-kms` |
 | `subscription_filters[*].destination_arn` | `string` (Kinesis / Firehose / Lambda ARN) | app-integration / analytics modules |
-| `subscription_filters[*].role_arn` | `string` (IAM role ARN) | `tf-mod-aws-iam-role` |
+| `subscription_filters[*].role_arn` | `string` (IAM role ARN) | `terraform-aws-iam-role` |
 
-> Foundation logging target — it needs no sibling output to stand up a group; it is consumed *by* `tf-mod-aws-vpc` flow logs, Lambda, ECS/EKS, and `tf-mod-aws-cloudtrail`, which pass this group's `arn`/`name` as their log destination.
+> Foundation logging target — it needs no sibling output to stand up a group; it is consumed *by* `terraform-aws-vpc` flow logs, Lambda, ECS/EKS, and `terraform-aws-cloudtrail`, which pass this group's `arn`/`name` as their log destination.
 
 ### Emits
 
@@ -218,7 +218,7 @@ module "app_logs" {
 
 ```hcl
 module "logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name = "/casey/app/worker"
   # retention_in_days defaults to 365; encrypted at rest by the AWS-owned key
@@ -231,7 +231,7 @@ module "logs" {
 
 ```hcl
 module "ephemeral_logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name              = "/casey/dev/sandbox"
   retention_in_days = 30 # one of the allowed discrete values
@@ -240,18 +240,18 @@ module "ephemeral_logs" {
 </details>
 
 <details>
-<summary><strong>3 · Customer-managed KMS CMK wired from <code>tf-mod-aws-kms</code></strong></summary>
+<summary><strong>3 · Customer-managed KMS CMK wired from <code>terraform-aws-kms</code></strong></summary>
 
 ```hcl
 module "logs_kms" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-kms?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-kms?ref=v1.0.0"
   alias  = "casey/cloudwatch-logs"
   # key policy must allow logs.<region>.amazonaws.com to Encrypt/Decrypt/GenerateDataKey/Describe,
   # scoped with kms:EncryptionContext:aws:logs:arn to this group's ARN.
 }
 
 module "logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name        = "/casey/app/secure"
   kms_key_arn = module.logs_kms.arn # upgrade from AWS-owned key to a CMK
@@ -269,7 +269,7 @@ provider "aws" {
 }
 
 module "tagged_logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name = "/casey/app/billing"
 
@@ -288,7 +288,7 @@ module "tagged_logs" {
 
 ```hcl
 module "logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name = "/casey/app/api"
 
@@ -312,7 +312,7 @@ module "logs" {
 
 ```hcl
 module "logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name = "/casey/app/latency"
 
@@ -333,11 +333,11 @@ module "logs" {
 </details>
 
 <details>
-<summary><strong>7 · Subscription filter → Firehose, with a delivery role from <code>tf-mod-aws-iam-role</code></strong></summary>
+<summary><strong>7 · Subscription filter → Firehose, with a delivery role from <code>terraform-aws-iam-role</code></strong></summary>
 
 ```hcl
 module "logs_delivery_role" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-iam-role?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-iam-role?ref=v1.0.0"
   name   = "casey-logs-to-firehose"
 
   assume_role_policy = jsonencode({
@@ -352,7 +352,7 @@ module "logs_delivery_role" {
 }
 
 module "logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name = "/casey/app/audit"
 
@@ -372,7 +372,7 @@ module "logs" {
 
 ```hcl
 module "logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name = "/casey/app/events"
 
@@ -392,7 +392,7 @@ module "logs" {
 
 ```hcl
 module "logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name = "/casey/app/firehose-and-kinesis"
 
@@ -419,7 +419,7 @@ module "logs" {
 
 ```hcl
 module "logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name        = "/casey/app/batch"
   log_streams = ["partition-0", "partition-1"] # pre-create streams a consumer expects
@@ -432,7 +432,7 @@ module "logs" {
 
 ```hcl
 module "logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name = "/aws/route53/casey-zone"
 
@@ -458,7 +458,7 @@ module "logs" {
 
 ```hcl
 module "archive_logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name            = "/casey/app/rarely-queried"
   log_group_class = "INFREQUENT_ACCESS" # FORCE-NEW; no metric/subscription filters, no Live Tail
@@ -472,7 +472,7 @@ module "archive_logs" {
 
 ```hcl
 module "ephemeral_logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name_prefix  = "/casey/job/" # avoids plan collisions on a hard-coded name
   skip_destroy = true          # on destroy, remove from state WITHOUT deleting logs in AWS
@@ -481,24 +481,24 @@ module "ephemeral_logs" {
 </details>
 
 <details>
-<summary><strong>14 · VPC flow logs target wired into <code>tf-mod-aws-vpc</code></strong></summary>
+<summary><strong>14 · VPC flow logs target wired into <code>terraform-aws-vpc</code></strong></summary>
 
 ```hcl
 module "flow_log_group" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name        = "/casey/vpc/flow-logs"
   kms_key_arn = module.logs_kms.arn
 }
 
 module "vpc" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-vpc?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-vpc?ref=v1.0.0"
 
   name                      = "casey-core"
   cidr_block                = "10.0.0.0/16"
   flow_log_destination_type = "cloud-watch-logs"
   flow_log_log_group_name   = module.flow_log_group.name
-  # flow_log_iam_role_arn from a tf-mod-aws-iam-role granting logs:PutLogEvents
+  # flow_log_iam_role_arn from a terraform-aws-iam-role granting logs:PutLogEvents
 }
 ```
 </details>
@@ -508,19 +508,19 @@ module "vpc" {
 
 ```hcl
 module "trail_logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name        = "/aws/cloudtrail/casey-org"
   kms_key_arn = module.logs_kms.arn
 }
 
 module "cloudtrail" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudtrail?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudtrail?ref=v1.0.0"
 
   name = "casey-org-trail"
   # CloudTrail requires the ":*" all-streams form here:
   cloud_watch_logs_group_arn = module.trail_logs.arn_with_suffix
-  # cloud_watch_logs_role_arn from a tf-mod-aws-iam-role granting logs:CreateLogStream/PutLogEvents
+  # cloud_watch_logs_role_arn from a terraform-aws-iam-role granting logs:CreateLogStream/PutLogEvents
 }
 ```
 </details>
@@ -531,13 +531,13 @@ module "cloudtrail" {
 ```hcl
 # 1) Customer-managed CMK for log encryption (key policy grants logs.<region>.amazonaws.com)
 module "logs_kms" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-kms?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-kms?ref=v1.0.0"
   alias  = "casey/cloudwatch-logs"
 }
 
 # 2) Delivery role CloudWatch Logs assumes to stream to Firehose
 module "logs_delivery_role" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-iam-role?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-iam-role?ref=v1.0.0"
   name   = "casey-logs-to-firehose"
 
   assume_role_policy = jsonencode({
@@ -552,7 +552,7 @@ module "logs_delivery_role" {
 
 # 3) This module — encrypted, bounded group with a metric filter and a subscription out
 module "app_logs" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-cloudwatch-log-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-cloudwatch-log-group?ref=v1.0.0"
 
   name              = "/casey/app/api"
   retention_in_days = 365
@@ -738,7 +738,7 @@ tags_all = { "DataClass" = "PII", "Environment" = "prod" }
 - [Real-time processing with subscriptions](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Subscriptions.html)
 - [Creating metric filters](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/MonitoringLogData.html)
 - Terraform: [`aws_cloudwatch_log_group`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group) · [`aws_cloudwatch_log_metric_filter`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_metric_filter) · [`aws_cloudwatch_log_subscription_filter`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_subscription_filter)
-- Sibling modules: `tf-mod-aws-kms`, `tf-mod-aws-iam-role`, `tf-mod-aws-vpc`, `tf-mod-aws-cloudtrail`
+- Sibling modules: `terraform-aws-kms`, `terraform-aws-iam-role`, `terraform-aws-vpc`, `terraform-aws-cloudtrail`
 - Module internals: `SCOPE.md`
 
 ---
